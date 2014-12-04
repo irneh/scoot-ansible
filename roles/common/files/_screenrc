@@ -1,0 +1,10 @@
+term screen-256color
+startup_message off     # Turn off start message
+defscrollback = 5000
+shelltitle '$ |bash'    # Dynamic window titled for running program
+msgwait 1               # Set messages timeout to one second
+nethack on              # Turn on nethack error messages
+backtick 0 0 0 whoami   # Set "%0`" to equal the output of "whoami"
+termcapinfo xterm* 'is=\E[r\E[m\E[2J\E[H\E[?7h\E[?1;4;6l'
+hardstatus off
+hardstatus alwayslastline  "%{= kw} %`@%H | %-Lw%{=b Kk} %n%f %t %{-}%+Lw %=| %Y-%m-%d %c"

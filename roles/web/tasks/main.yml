@@ -1,0 +1,281 @@
+---
+
+- name: app directory
+  file: path={{ app_dir }}
+        state=directory
+
+- name: web2py directory
+  file: path={{ web_dir }}
+        state=directory
+
+- name: add nginx repository
+  apt_repository: repo='ppa:nginx/stable'
+  tags: packages
+
+- name: ensure apt cache is up to date
+  action: apt update_cache=yes
+  tags: packages
+
+- name: ensure packages are installed
+  action: apt name={{ item }}
+  with_items:
+    - build-essential
+    - bzr
+    - libboost-python-dev
+    - libexiv2-dev
+    - libfontconfig1
+    - libfreetype6-dev
+    - libjpeg62
+    - libjpeg62-dev
+    - libpq-dev
+    - memcached
+    - nginx
+    - postgresql-client
+    - python-all-dev
+    - python-dev
+    - scons
+    - unzip
+  tags: packages
+
+- name: ufw allow inbound TCP
+  ufw: rule=allow
+       port={{ item }}
+       proto=tcp
+  with_items:
+    - 80
+    - 443
+  tags: firewall
+
+- name: ensure environment vars
+  action: copy
+          src=environment
+          dest=/etc/environment
+
+- name: ensure ssl cert
+  action: copy
+          src=www.scoot.io.crt
+          dest=/etc/ssl/www.scoot.io.crt
+  tags: ssl
+
+- name: ensure ssl key
+  action: copy
+          src=www.scoot.io.key
+          dest=/etc/ssl/www.scoot.io.key
+  tags: ssl
+
+- name: ensure ssh config
+  action: copy
+          src=sshconfig
+          dest="{{ home_dir }}/.ssh/config"
+  tags: ssh
+
+- name: ensure rsa id
+  action: copy
+          src=scoot_id_rsa
+          dest="{{ home_dir }}/.ssh/scoot_id_rsa"
+          owner={{ user }}
+          group={{ user }}
+          mode=0600
+  tags: ssh
+
+- name: ensure application code
+  git: repo=git@bitbucket.org:irneh/hikerpix.git
+       key_file="{{ home_dir}}/.ssh/scoot_id_rsa"
+       accept_hostkey=true
+       dest={{ web_dir }}
+       update=true
+
+- name: ensure nginx conf
+  action: copy
+          src=scoot.io
+          dest=/etc/nginx/sites-available/scoot.io
+
+- name: ensure our site is enabled
+  file: src=/etc/nginx/sites-available/scoot.io
+        dest=/etc/nginx/sites-enabled/scoot.io
+        state=link
+
+- name: ensure nginx default site is disabled
+  file: path=/etc/nginx/sites-enabled/default
+        state=absent
+
+- pip: name=virtualenv
+  tags: python
+
+- name: ensure venv
+  shell: chdir={{ app_dir }}
+         if [ ! -d {{ venv_dir }} ]; then virtualenv venv; fi
+  tags: python
+
+- pip: name={{ item }} virtualenv={{ venv_dir }}
+  with_items:
+    - anyjson
+    - boto
+    - celery
+    - psycopg2
+    - python-dateutil
+    - python-memcached
+    - requests
+    - superlance
+    - simplejson
+    - supervisor
+    - uWSGI
+  tags: python
+
+- name: ensure symlinks for PIL JPEG decoding 1 of 4
+  file: src=/usr/lib/x86_64-linux-gnu/libjpeg.so
+        dest=/usr/lib/libjpeg.so
+        state=link
+  tags: python
+
+- name: ensure symlinks for PIL JPEG decoding 2 of 4
+  file: src=/usr/lib/x86_64-linux-gnu/libfreetype.so
+        dest=/usr/lib/libfreetype.so
+        state=link
+  tags: python
+
+- name: ensure symlinks for PIL JPEG decoding 3 of 4
+  file: src=/usr/lib/x86_64-linux-gnu/libz.so
+        dest=/usr/lib/libz.so
+        state=link
+  tags: python
+
+- name: ensure symlinks for PIL JPEG decoding 4 of 4
+  file: src=/usr/include/freetype2
+        dest=/usr/local/include/freetype
+        state=link
+
+- pip: name=PIL
+       extra_args="--allow-external PIL --allow-unverified PIL"
+       virtualenv={{ venv_dir }}
+  tags: python
+
+- pip: name="bzr+https://code.launchpad.net/~adam.russell/pyexiv2/pyexiv2-0.3#egg=Package"
+       virtualenv={{ venv_dir }}
+  tags: python
+
+- name: symlink for pyexiv2
+  file: src="{{ venv_dir }}/libexiv2python.so"
+        dest="{{ venv_dir}}/lib/python2.7/site-packages/libexiv2python.so"
+        state=link
+        force=yes
+  tags: python
+
+- name: ensure supervisor startup script
+  action: copy
+          src=supervisord
+          dest=/etc/init.d/supervisord
+          mode=0755
+  notify: update rc.d
+  tags: supervisor
+
+- name: ensure supervisor conf
+  action: copy
+          src=supervisord.conf
+          dest="{{ venv_dir }}/supervisord.conf"
+  tags: supervisor
+
+- name: ensure munin plugin for memcached
+  action: get_url
+          url=https://raw.github.com/munin-monitoring/contrib/master/plugins/memcached/memcached_multi_
+          dest=/usr/share/munin/plugins/memcached_multi_
+          mode=0755
+  tags: munin
+
+- name: ensure munin plugin for memcached
+  action: get_url
+          url=https://raw.github.com/munin-monitoring/contrib/master/plugins/memcached/memcached_multi_
+          dest=/usr/share/munin/plugins/memcached_multi_
+          mode=0755
+  tags: munin
+
+- name: ensure munin plugin for memcached symlinks
+  file: src="/usr/share/munin/plugins/memcached_multi_"
+        dest="/etc/munin/plugins/memcached_multi{{ item }}"
+        state=link
+  with_items:
+    - _
+    - _bytes
+    - _commands
+    - _conns
+    - _evictions
+    - _items
+    - _memory
+  tags: munin
+
+- name: ensure munin plugin for uwsgi
+  action: get_url
+          url=https://raw.github.com/jarus/munin-uwsgi/master/uwsgi_
+          dest=/usr/share/munin/plugins/uwsgi_
+          mode=0755
+  tags: munin
+
+- name: ensure munin plugin for uwsgi symlink 1 of 2
+  file: src="/usr/share/munin/plugins/uwsgi_"
+        dest="/etc/munin/plugins/uwsgi_memory"
+        state=link
+  tags: munin
+
+- name: ensure munin plugin for uwsgi symlink 2 of 2
+  file: src="/usr/share/munin/plugins/uwsgi_"
+        dest="/etc/munin/plugins/uwsgi_processes"
+        state=link
+  tags: munin
+
+- name: ensure munin plugin for nginx symlinks 1 of 2
+  file: src="/usr/share/munin/plugins/nginx_request"
+        dest="/etc/munin/plugins/nginx_request"
+        state=link
+  tags: munin
+
+- name: ensure munin plugin for nginx symlinks 2 of 2
+  file: src="/usr/share/munin/plugins/nginx_status"
+        dest="/etc/munin/plugins/nginx_status"
+        state=link
+  tags: munin
+
+- name: ensure munin plugin for nginx 1 of 2
+  lineinfile: dest=/etc/munin/plugin-conf.d/munin-node
+              line="[nginx*]"
+              state=present
+  tags: munin
+
+- name: ensure munin plugin for nginx 2 of 2
+  lineinfile: dest=/etc/munin/plugin-conf.d/munin-node
+              line="env.url http://localhost/nginx_status"
+              insertafter="[nginx*]"
+              state=present
+  tags: munin
+
+#- name: ensure db in /etc/hosts
+  #lineinfile: dest=/etc/hosts
+              #line="{{ db_ip }}  db.scoot.io"
+              #state=present
+
+- name: bugfix for allowing sudo command to inherit environment variables
+  lineinfile: dest=/etc/pam.d/sudo
+              line="session required pam_env.so readenv=1"
+              state=present
+
+- name: ensure memcached config
+  lineinfile: dest=/etc/memcached.conf
+              line="-m 64"
+              state=absent
+
+- name: ensure memcached config
+  lineinfile: dest=/etc/memcached.conf
+              line="-m 32"
+              state=present
+
+- name: ensure cron job to delete web2py session files
+  cron: name="Delete old web2py sesssion files"
+        user={{ user }}
+        month="*"
+        day="*"
+        hour=0
+        minute=0
+        job="find {{ web_dir }}/applications/hikerpix/sessions -mtime +3 -delete"
+  tags: cron
+
+- name: ensure permissions (brute force for now)
+  shell: chown -R {{ user }}:{{ user }} {{ home_dir }}

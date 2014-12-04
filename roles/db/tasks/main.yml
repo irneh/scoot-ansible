@@ -1,0 +1,187 @@
+---
+
+- name: ensure postgresql apt
+  apt_key: url=https://www.postgresql.org/media/keys/ACCC4CF8.asc
+           state=present
+
+- name: ensure postgresql apt source
+  action: copy
+          src=pgdg.list
+          dest="/etc/apt/sources.list.d/pgdg.list"
+          mode=0775
+  tags: database
+
+- name: ensure apt cache is up to date
+  action: apt update_cache=yes
+  tags: packages
+
+- name: ensure packages are installed
+  action: apt name={{ item }}
+  with_items:
+    - duplicity
+    - libdbd-pg-perl
+    - pgtune
+    - postgresql-9.4
+    - postgresql-contrib-9.4
+    - python-psycopg2
+    - rabbitmq-server
+  notify: ensure rabbitmq started
+
+- name: ufw allow inbound TCP
+  ufw: rule=allow
+       src={{ item[0] }}
+       port={{ item[1] }}
+       proto=tcp
+  with_nested:
+    - web_ips
+    - web_ports
+  tags: firewall
+
+#- name: ensure postgres config
+  #lineinfile: dest=/etc/sysctl.conf
+              #line="shmmax=17179869184"
+              #state=present
+
+- name: ensure postgres config
+  lineinfile: dest=/etc/postgresql/9.4/main/pg_hba.conf
+              line="host hikerpix hikerpix all md5"
+              state=present
+  tags: database
+
+- name: ensure postgres config
+  lineinfile: dest=/etc/postgresql/9.4/main/pg_hba.conf
+              line="host replication postgres all trust"
+              state=present
+  tags: database
+
+#- name: ensure postgres config
+  #lineinfile: dest=/proc/sys/kernel/shmmax
+              #regexp=".*"
+              #line="300000000"
+  #notify: config kernel params
+
+- name: ensure postgres config
+  lineinfile: dest=/etc/postgresql/9.4/main/postgresql.conf
+              line="listen_addresses = '*'"
+              state=present
+  tags: database
+
+- name: ensure postgres config
+  lineinfile: dest=/etc/postgresql/9.4/main/postgresql.conf
+              line="autovacuum = on"
+              state=present
+  tags: database
+
+- name: ensure postgres config
+  lineinfile: dest=/etc/postgresql/9.4/main/postgresql.conf
+              line="shared_preload_libraries = 'pg_stat_statements'"
+              state=present
+  tags: database
+
+- name: ensure postgres config
+  lineinfile: dest=/etc/postgresql/9.4/main/postgresql.conf
+              line="pg_stat_statements.max = 100"
+              state=present
+  tags: database
+
+- name: ensure postgres config
+  lineinfile: dest=/etc/postgresql/9.4/main/postgresql.conf
+              line="pg_stat_statements.track = top"
+              state=present
+  tags: database
+
+- name: ensure postgres config
+  lineinfile: dest=/etc/postgresql/9.4/main/postgresql.conf
+              line="pg_stat_statements.save = off"
+              state=present
+  tags: database
+
+- name: ensure postgres db
+  sudo: true
+  sudo_user: postgres
+  postgresql_db: name={{ db_name }}
+                 template="template0"
+                 encoding="UTF8"
+  tags: database
+
+- name: ensure postgres user
+  sudo: true
+  sudo_user: postgres
+  postgresql_user: name={{ db_user }}
+                   db={{ db_name }}
+                   login_password={{ db_password }}
+                   role_attr_flags="NOSUPERUSER,INHERIT,NOCREATEROLE,NOCREATEDB,LOGIN,NOREPLICATION"
+  tags: database
+
+- name: ensure pg backup config
+  action: copy
+          src=pg-backup.config
+          dest="{{ bin_dir }}/pg-backup.config"
+  tags: database
+
+- name: ensure pg backup script
+  action: copy
+          src=pg-backup-rotated.sh
+          dest="{{ bin_dir }}/pg-backup-rotated.sh"
+          mode=0775
+  tags: database
+
+- name: ensure cron job to backup pg database
+  cron: name="Backup Postgres database(s)"
+        user=postgres
+        month="*"
+        day="*"
+        hour=0
+        minute=0
+        job="{{ bin_dir }}/pg-backup-rotated.sh"
+  tags: database cron
+
+- name: ensure cron job to diff backups to s3
+  cron: name="Sync backups to S3"
+        user=postgres
+        month="*"
+        day="*"
+        hour=0
+        minute=0
+        job="duplicity /home/ubuntu/scoot/pg-backup s3+http://private.s3.hikerpix.com"
+  tags: database cron
+
+- pip: name=boto
+
+- name: ensure rabbitmq vhost
+  rabbitmq_vhost: node={{ rabbitmq_host }}
+                  name={{ rabbitmq_vhost }}
+
+- name: ensure rabbitmq user
+  rabbitmq_user: node={{ rabbitmq_host }}
+                 user={{ rabbitmq_user }}
+                 password={{ rabbitmq_password }}
+                 vhost={{ rabbitmq_vhost }}
+                 configure_priv=.*
+                 read_priv=.*
+                 write_priv=.*
+
+- name: ensure rabbitmq management interface
+  rabbitmq_plugin: names=rabbitmq_management
+                   state=enabled
+
+- name: ensure environment variable for rabbitmq
+  shell: export HOME=/root
+
+- name: ensure rabbitmq environment config
+  shell: touch /etc/rabbitmq/rabbitmq-env.conf
+
+- name: ensure rabbitmq bind local network
+  lineinfile: dest=/etc/rabbitmq/rabbitmq-env.conf
+              line="NODE_IP_ADDRESS={{ ansible_eth1.ipv4.address }}"
+              state=present
+
+- name: ensure permissions (brute force for now)
+  shell: chown -R {{ user }}:{{ user }} {{ home_dir }}
+
+- name: user backup directory
+  file: path="{{ backup_dir }}"
+        state=directory
+        owner="{{ user }}"
+        group=postgres
+        mode=0775

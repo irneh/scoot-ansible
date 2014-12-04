@@ -1,0 +1,9 @@
+[proxyservers]
+proxy01.prd.scoot.io
+
+[webservers]
+web01.prd.scoot.io
+web02.prd.scoot.io
+
+[dbservers]
+db01.prd.scoot.io

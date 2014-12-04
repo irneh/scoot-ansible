@@ -1,0 +1,61 @@
+---
+
+- name: add nginx repository
+  apt_repository: repo='ppa:nginx/stable'
+  tags: packages
+
+- name: ensure apt cache is up to date
+  action: apt update_cache=yes
+  tags: packages
+
+- name: ensure packages are installed
+  action: apt name={{ item }}
+  with_items:
+    - nginx
+  tags: packages
+
+- name: ufw allow inbound TCP
+  ufw: rule=allow
+       port={{ item }}
+       proto=tcp
+  with_items:
+    - 80
+    - 443
+
+- name: ensure ssl cert
+  action: copy
+          src=www.scoot.io.crt
+          dest=/etc/ssl/www.scoot.io.crt
+
+- name: ensure ssl key
+  action: copy
+          src=www.scoot.io.key
+          dest=/etc/ssl/www.scoot.io.key
+
+- name: ensure nginx conf
+  action: copy
+          src=scoot.io
+          dest=/etc/nginx/sites-available/scoot.io
+
+- name: ensure our site is enabled
+  file: src=/etc/nginx/sites-available/scoot.io
+        dest=/etc/nginx/sites-enabled/scoot.io
+        state=link
+
+- name: ensure nginx default site is disabled
+  file: path=/etc/nginx/sites-enabled/default
+        state=absent
+
+
+- name: ensure munin plugin for nginx 1 of 2
+  lineinfile: dest=/etc/munin/plugin-conf.d/munin-node
+              line="[nginx*]"
+              state=present
+  tags: munin
+
+- name: ensure munin plugin for nginx 2 of 2
+  lineinfile: dest=/etc/munin/plugin-conf.d/munin-node
+              line="env.url http://localhost/nginx_status"
+              insertafter="[nginx*]"
+              state=present
+  tags: munin

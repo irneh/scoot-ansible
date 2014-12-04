@@ -1,0 +1,5 @@
+---
+
+app_dir: "{{ home_dir }}/hikerpix"
+venv_dir: "{{ app_dir }}/venv"
+web_dir: "{{ app_dir }}/web2py"

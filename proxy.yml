@@ -1,0 +1,9 @@
+- hosts: proxyservers
+
+  roles:
+    - common
+    - proxy
+
+  gather_facts: true
+  remote_user: root
+  sudo: false

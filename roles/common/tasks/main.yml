@@ -1,0 +1,176 @@
+---
+
+- name: ensure apt cache is up to date
+  action: apt update_cache=yes
+  tags: packages
+
+- name: ensure packages are installed
+  action: apt name={{ item }}
+  with_items:
+    - fail2ban
+    - git
+    - munin-node
+    - ntp
+    - python-pip
+    - ufw
+    - unattended-upgrades
+    - uptimed
+  tags: packages
+
+- name: ensure apt automatic upgrades
+  action: copy
+          src=10periodic
+          dest=/etc/apt/apt.conf.d/10periodic
+  tags: packages
+
+- name: ensure user user
+  group: name={{ user }}
+
+- name: ensure user groups
+  user: name={{ user }}
+        shell=/bin/bash
+        groups=ubuntu,adm,sudo
+
+- name: ensure passwordless sudo
+  action: copy
+          src=sudoers.d
+          dest=/etc/sudoers.d/{{ user }}
+          mode=0440
+
+- name: user bin directory
+  file: path="{{ bin_dir }}"
+        state=directory
+
+- name: ensure sshd config
+  lineinfile: dest=/etc/ssh/sshd_config
+              regexp="^PasswordAuthentication [no|yes]"
+              line="PasswordAuthentication no"
+  tags: ssh
+
+- name: ensure sshd config
+  lineinfile: dest=/etc/ssh/sshd_config
+              regexp="^UsePAM [no|yes]"
+              line="UsePAM yes"
+  tags: ssh
+
+- name: user ssh directory
+  file: path="{{ home_dir }}/.ssh"
+        state=directory
+  tags: ssh
+
+- name: ensure authorized ssh keys
+  authorized_key: user=root
+                  key="{{ item }}"
+  with_file:
+    - id_rsa.henri.pub
+    - id_rsa.chris.pub
+    - id_rsa.scoot.pub
+  tags: ssh
+
+- name: ensure authorized ssh keys
+  authorized_key: user={{ user }}
+                  key="{{ item }}"
+  with_file:
+    - id_rsa.henri.pub
+    - id_rsa.chris.pub
+    - id_rsa.scoot.pub
+  tags: ssh
+
+- name: ufw deny incoming
+  ufw: policy=deny
+       direction=incoming
+  tags: firewall
+
+- name: ufw allow outgoing
+  ufw: policy=allow
+       direction=outgoing
+  tags: firewall
+
+- name: ufw allow ssh
+  ufw: rule=allow
+       port=22
+       proto=tcp
+  tags: firewall
+
+- name: ufw rate limit SSH
+  ufw: rule=limit
+       port=22
+       proto=any
+  tags: firewall
+
+- name: ufw allow munin monitoring
+  ufw: rule=allow
+       src={{ munin_master_ip }}
+       port=4949
+       proto=tcp
+  tags: firewall munin
+
+- name: enable ufw now and at boot
+  ufw: state=enabled
+  tags: firewall
+
+- name: ensure swap space 1 of 5
+  command: dd if=/dev/zero of=/swapfile bs=1M count=512
+  when: ansible_swaptotal_mb < 1
+
+- name: ensure swap space 2 of 5
+  command: mkswap /swapfile
+  when: ansible_swaptotal_mb < 1
+
+- name: ensure swap space 3 of 5
+  action: lineinfile dest=/etc/fstab regexp="swapfile" line="/swapfile none swap sw 0 0" state=present
+
+- name: ensure swap space 4 of 5
+  command: swapon -a
+
+- name: ensure swap space 5 of 5
+  shell: echo 0 | tee /proc/sys/vm/swappiness
+
+- name: ensure munin master ip
+  lineinfile: dest=/etc/munin/munin-node.conf
+              line="allow {{ munin_master_ip}}"
+              state=present
+  tags: munin
+
+- name: ensure munin config
+  shell: munin-node-configure --shell --families=contrib,auto | sh -x
+  tags: munin
+
+- name: ensure ntp
+  action: copy
+          src=ntp.conf
+          dest=/etc/ntp.conf
+  tags: ntp
+
+- name: ensure timezone
+  action: copy
+          src=timezone
+          dest=/etc/timezone
+  notify: reconfigure timezone
+  tags: ntp
+
+- name: user bash profile
+  action: copy
+          src=_bash_profile
+          dest="{{ home_dir }}/.bash_profile"
+
+- name: ensure user bash rc
+  lineinfile: dest={{ home_dir }}/.bashrc
+              line="export TERM=xterm-256color"
+              state=present
+
+- name: user screenrc
+  action: copy
+          src=_screenrc
+          dest="{{ home_dir }}/.screenrc"
+
+- name: user vimrc
+  action: copy
+          src=_vimrc
+          dest="{{ home_dir }}/.vimrc"
+
+- name: ensure vimfiles
+  action: copy
+          src=_vim/
+          dest="{{ home_dir }}/.vim/"
+

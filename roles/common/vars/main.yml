@@ -1,0 +1,12 @@
+---
+
+user: "ubuntu"
+home_dir: "/home/{{ user }}"
+bin_dir: "{{ home_dir }}/bin"
+
+db_ip: 10.128.166.170
+web_ips: [10.128.86.226, 10.128.86.227, 10.128.161.229]
+
+web_ports: [5432, 5672]
+
+munin_master_ip: 10.128.171.195

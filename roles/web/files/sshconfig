@@ -1,0 +1,3 @@
+Host bitbucket.org
+  IdentityFile /home/ubuntu/.ssh/scoot_id_rsa
+  StrictHostKeyChecking no

@@ -1,0 +1,39 @@
+### BEGIN INIT INFO
+# Provides:          supervisord
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Auto-starts supervisord
+# Description:       Auto-starts supervisord
+# processname: supervisord
+# pidfile: /var/run/supervisord.pid
+### END INIT INFO
+
+USER=ubuntu
+SUPERVISORD=/home/ubuntu/hikerpix/venv/bin/supervisord
+SUPERVISORCTL=/home/ubuntu/hikerpix/venv/bin/supervisorctl
+
+case $1 in
+start)
+        echo -n "Starting supervisord: "
+        sudo -u $USER $SUPERVISORD
+        echo
+        ;;
+stop)
+        echo -n "Stopping supervisord: "
+        sudo -u $USER $SUPERVISORCTL shutdown
+        echo
+        ;;
+restart)
+        echo -n "Stopping supervisord: "
+        sudo -u $USER $SUPERVISORCTL shutdown
+        echo
+        echo -n "Sleeping 5 seconds."
+        sudo -u $USER sleep 5
+        echo
+        echo -n "Starting supervisord."
+        sudo -u $USER $SUPERVISORD
+        echo
+        ;;
+esac

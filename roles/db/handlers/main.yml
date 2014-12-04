@@ -1,0 +1,11 @@
+---
+
+- name: ensure rabbitmq started
+  service: name=rabbitmq-server
+           state=started
+
+- name: config kernel params
+  command: sysctl -p
+
+- name: reconfigure timezone
+  command: dpkg-reconfigure --frontend noninteractive tzdata

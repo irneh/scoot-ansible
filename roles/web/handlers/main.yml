@@ -1,0 +1,4 @@
+---
+
+- name: update rc.d
+  shell: update-rc.d supervisord defaults

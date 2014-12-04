@@ -1,0 +1,9 @@
+- hosts: dbservers
+
+  roles:
+    - common
+    - db
+
+  gather_facts: true
+  remote_user: root
+  sudo: false
