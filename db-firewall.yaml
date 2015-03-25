@@ -1,0 +1,14 @@
+- hosts: dbservers
+
+  tasks:
+    - name: ufw allow inbound TCP
+      ufw: rule=allow
+           src=10.128.166.174
+           port=5432
+           proto=tcp
+
+    - name: ufw allow inbound TCP
+      ufw: rule=allow
+           src=10.128.166.174
+           port=5672
+           proto=tcp
