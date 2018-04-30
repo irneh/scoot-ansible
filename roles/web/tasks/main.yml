@@ -69,22 +69,6 @@
           dest="{{ home_dir }}/.ssh/config"
   tags: ssh
 
-- name: ensure rsa id
-  action: copy
-          src=scoot_id_rsa
-          dest="{{ home_dir }}/.ssh/scoot_id_rsa"
-          owner={{ user }}
-          group={{ user }}
-          mode=0600
-  tags: ssh
-
-- name: ensure application code
-  git: repo=git@bitbucket.org:irneh/hikerpix.git
-       key_file="{{ home_dir}}/.ssh/scoot_id_rsa"
-       accept_hostkey=true
-       dest={{ web_dir }}
-       update=true
-
 - name: ensure nginx conf
   action: copy
           src=scoot.io
