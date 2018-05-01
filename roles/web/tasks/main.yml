@@ -103,6 +103,7 @@
     - anyjson
     - boto
     - celery
+    - pillow
     - psycopg2
     - python-dateutil
     - python-memcached
@@ -111,34 +112,6 @@
     - simplejson
     - supervisor
     - uWSGI
-  tags: python
-
-- name: ensure symlinks for PIL JPEG decoding 1 of 4
-  file: src=/usr/lib/x86_64-linux-gnu/libjpeg.so
-        dest=/usr/lib/libjpeg.so
-        state=link
-  tags: python
-
-- name: ensure symlinks for PIL JPEG decoding 2 of 4
-  file: src=/usr/lib/x86_64-linux-gnu/libfreetype.so
-        dest=/usr/lib/libfreetype.so
-        state=link
-  tags: python
-
-- name: ensure symlinks for PIL JPEG decoding 3 of 4
-  file: src=/usr/lib/x86_64-linux-gnu/libz.so
-        dest=/usr/lib/libz.so
-        state=link
-  tags: python
-
-- name: ensure symlinks for PIL JPEG decoding 4 of 4
-  file: src=/usr/include/freetype2
-        dest=/usr/local/include/freetype
-        state=link
-
-- pip: name=PIL
-       extra_args="--allow-external PIL --allow-unverified PIL"
-       virtualenv={{ venv_dir }}
   tags: python
 
 - pip: name="bzr+https://code.launchpad.net/~adam.russell/pyexiv2/pyexiv2-0.3#egg=Package"
