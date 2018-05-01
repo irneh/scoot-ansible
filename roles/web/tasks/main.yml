@@ -8,10 +8,6 @@
   file: path={{ web_dir }}
         state=directory
 
-- name: add nginx repository
-  apt_repository: repo='ppa:nginx/stable'
-  tags: packages
-
 - name: add nodejs repo
   shell: curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
 
