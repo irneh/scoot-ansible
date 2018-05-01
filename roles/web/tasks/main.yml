@@ -12,6 +12,9 @@
   apt_repository: repo='ppa:nginx/stable'
   tags: packages
 
+- name: add nodejs repo
+  shell: curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+
 - name: ensure apt cache is up to date
   action: apt update_cache=yes
   tags: packages
@@ -30,6 +33,7 @@
     - libpq-dev
     - memcached
     - nginx
+    - nodejs
     - postgresql-client
     - python-all-dev
     - python-dev
