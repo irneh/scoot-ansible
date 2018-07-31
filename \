@@ -127,10 +127,9 @@
   tags: supervisor
 
 - name: ensure symlink to supervisor conf
-  file: src="{{ venv_dir }}/supervisord.conf"
+        src="{{ venv_dir }}/supervisord.conf"
         dest=/etc/supervisor/conf.d/scoot.conf
         state=link
-        force=yes
 
 - name: ensure munin plugin for memcached
   action: get_url

@@ -58,24 +58,6 @@
         state=directory
   tags: ssh
 
-- name: ensure authorized ssh keys
-  authorized_key: user=root
-                  key="{{ item }}"
-  with_file:
-    - id_rsa.henri.pub
-    - id_rsa.chris.pub
-    - id_rsa.scoot.pub
-  tags: ssh
-
-- name: ensure authorized ssh keys
-  authorized_key: user={{ user }}
-                  key="{{ item }}"
-  with_file:
-    - id_rsa.henri.pub
-    - id_rsa.chris.pub
-    - id_rsa.scoot.pub
-  tags: ssh
-
 - name: ufw deny incoming
   ufw: policy=deny
        direction=incoming
